@@ -58,34 +58,33 @@ void* reader(void *arg)
 
         printf("READER: %d\n", value);
 
-        sleep(rand() % 4);
-
         printf("READER: going home\n");
         pthread_mutex_lock(&counters_mutex);
         readers_counter--;
         if(readers_counter == 0)
             sem_post(&writers_mutex);
         pthread_mutex_unlock(&counters_mutex);
+        sleep(rand() % 4);        
     }
     return NULL;
 }
 
 void* buffor(void *arg)
 {
-    int should_sleep = 0;
     while(buffor_running){
         sem_wait(&writers_mutex);
         pthread_mutex_lock(&buff.mutex_inside);
 
         if(buff.head_iterator != -1){
-            should_sleep = 0;
             value = buff.buffor[0];
             printf("BUFFOR provisiones: %d\n", value);
 
-            for(int i = 0 ; i < buff.head_iterator && i < BUFFOR_SIZE - 1 ; ++i)
+            for(int i = 0 ; i < buff.head_iterator && i < BUFFOR_SIZE - 1 ; ++i){
+                printf("%d ", buff.buffor[i]);
                 buff.buffor[i] = buff.buffor[i + 1];
-        }else{
-            should_sleep = 1;
+            }
+            printf("%d\n", buff.buffor[buff.head_iterator]);
+            buff.head_iterator--;
         }
 
         printf("BUFFOR: going home\n");
@@ -106,12 +105,10 @@ void* writer(void *arg)
         }
 
         pthread_mutex_lock(&buff.mutex_inside);
-
+        buff.head_iterator++;
         buff.buffor[buff.head_iterator] = rand() % 15;
 
         printf("WRITER: %d head index: %d\n", buff.buffor[buff.head_iterator], buff.head_iterator);
-
-        buff.head_iterator++;
 
         printf("WRITER: going home\n");
         pthread_mutex_unlock(&buff.mutex_inside);

@@ -27,8 +27,7 @@ void* reader(void *arg)
         pthread_mutex_unlock(&counters_mutex);
 
         printf("READER: %d\n", value);
-
-        sleep(rand() % 4);
+        sleep(rand() % 3);
 
         printf("READER: going home\n");
         pthread_mutex_lock(&counters_mutex);
@@ -36,6 +35,7 @@ void* reader(void *arg)
         if(readers_counter == 0)
             sem_post(&writers_mutex);
         pthread_mutex_unlock(&counters_mutex);
+        sleep(rand() % 4);
     }
     return NULL;
 }
@@ -44,16 +44,10 @@ void* writer(void *arg)
 {
     for(int i = 0 ; i < iterations ; ++i){
         sem_wait(&writers_mutex);
-
         value = rand() % 15;
-
         printf("WRITER: %d\n", value);
-
-        sleep(rand() % 10);
-
-        printf("WRITER: going home\n");
-
         sem_post(&writers_mutex);
+        sleep(rand() % 10);
     }
     return NULL;
 }

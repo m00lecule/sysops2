@@ -34,7 +34,7 @@ void* reader(void *arg)
 
         sleep(rand() % 4);
 
-        printf("READER: going home\n");
+        printf("READER: gh\n");
         pthread_mutex_lock(&counters_mutex);
         readers_counter--;
         if(readers_counter == 0)
@@ -61,6 +61,7 @@ void* critic(void *arg)
 void* writer(void *arg)
 {
     for(int i = 0 ; i < iterations ; ++i){
+        sleep(rand() % 10);
         sem_wait(&writers_mutex);
 
         value = rand() % 15;

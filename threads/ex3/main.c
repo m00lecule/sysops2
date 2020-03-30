@@ -30,11 +30,11 @@ void* reader(void *arg)
         readers_counter[pick]++;
         pthread_mutex_unlock(&counters_mutex[pick]);
 
-        printf("READER: %d\n", value[pick]);
+        printf("READER:from %d value %d\n",pick,  value[pick]);
 
         sleep(rand() % 4);
 
-        printf("READER: going home\n");
+        printf("READER: %d gh\n", pick);
         pthread_mutex_lock(&counters_mutex[pick]);
         readers_counter[pick]--;
         if(readers_counter[pick] == 0)
@@ -58,10 +58,8 @@ void* writer(void *arg)
             printf("WRITER to %d : %d\n", j, value[j]);
 
             sleep(rand() % 10);
-
-            printf("WRITER: going home\n");
-
             sem_post(&writers_mutex[j]);
+            break;
         }
     }
     return NULL;

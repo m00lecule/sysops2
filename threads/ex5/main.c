@@ -31,6 +31,7 @@ void* reader(void *arg)
                 sem_wait(&writers_mutex[index]);
             else if(readers_counter[index] == max_readers[index]){
                 pthread_mutex_unlock(&counters_mutex[index]);
+                printf("READER: resource %d is busy\n", index);
                 continue;
             }
             
@@ -100,9 +101,11 @@ int main(int argc, char *argv[]) {
         }
     }
      
-    for(int i = 0 ; i < RESOURCES ; ++i)
-        max_readers[i] = (rand() % readers) + 1;
-
+    for(int i = 0 ; i < RESOURCES ; ++i){
+        max_readers[i] = (rand() % 4) + 1;
+        printf("%d ", max_readers[i]);
+    }
+    printf("\n");
     pthread_t* threads = (pthread_t*)malloc((readers + writers)*sizeof(pthread_t));
 
     for(int i = 0; i < readers; ++i){

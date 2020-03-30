@@ -35,6 +35,7 @@ void* reader(void *arg)
         printf("READER: %d at index %d\n", value[index], index);
 
         if(index == 0){
+            printf("BUFOR IS EMPTY\n");
             pthread_cond_signal(&writers_cond);
         }else{
             pthread_cond_signal(&readers_cond);
@@ -55,6 +56,7 @@ void* writer(void *arg)
         printf("WRITER: %d at i: %d\n", value[index], index);
 
         if((index++) == BUFFOR_SIZE){
+            printf("BUFOR IS FULL\n");
             pthread_mutex_lock(&readers_mut);
             pthread_cond_signal(&readers_cond);
             pthread_cond_wait(&writers_cond, &readers_mut);
