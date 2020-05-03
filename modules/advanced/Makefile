@@ -1,6 +1,6 @@
-obj-m += reverse.o
+obj-m += advanced.o
 
-module = reverse
+module = advanced
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules

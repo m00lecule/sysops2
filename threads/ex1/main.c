@@ -15,6 +15,7 @@ int iterations;
 
 void* reader(void *arg)
 {
+    int index = (int *) arg;
 
     for(int i = 0 ; i < iterations ; ++i){
         sleep(rand() % 10);
@@ -26,10 +27,10 @@ void* reader(void *arg)
         readers_counter++;
         pthread_mutex_unlock(&counters_mutex);
 
-        printf("READER: %d\n", value);
+        printf("READER %d: %d\n", index, value);
         sleep(rand() % 3);
 
-        printf("READER: going home\n");
+        printf("READER %d: going home\n", index);
         pthread_mutex_lock(&counters_mutex);
         readers_counter--;
         if(readers_counter == 0)
@@ -42,10 +43,13 @@ void* reader(void *arg)
 
 void* writer(void *arg)
 {
+    int index = (int *) arg;
+
     for(int i = 0 ; i < iterations ; ++i){
+        printf("WRITER %d wants to write\n",index);
         sem_wait(&writers_mutex);
         value = rand() % 15;
-        printf("WRITER: %d\n", value);
+        printf("WRITER %d: %d\n",index, value);
         sem_post(&writers_mutex);
         sleep(rand() % 10);
     }
@@ -76,11 +80,11 @@ int main(int argc, char *argv[]) {
 
     for(int i = 0; i < readers; ++i){
 
-        pthread_create(&threads[i], NULL, reader, NULL); 
+        pthread_create(&threads[i], NULL, reader, (void*) i); 
     }
     
     for(int i = 0; i < writers; ++i){
-        pthread_create(&threads[readers + i], NULL, writer, NULL); 
+        pthread_create(&threads[readers + i], NULL, writer, (void*) i); 
     }
 
     for(int i = 0; i < writers + readers; ++i)

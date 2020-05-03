@@ -49,6 +49,8 @@ void* writer(void *arg)
     for(int i = 0 ; i < iterations ; ++i){
             
         for(int j = 0 ; j < RESOURCES ; ++j){
+            printf("WRITER tries %d\n", j);
+
             if(sem_trywait(&writers_mutex[j]) != 0){
                 continue;
             }

