@@ -43,7 +43,7 @@ ssize_t prname_write(struct file *filep, const char *buff, size_t count, loff_t 
   char k_buff[BUFF_SIZE] = {};
 
   result = copy_from_user(k_buff, buff, count);
-  if (!result) {
+  if (result) {
     return -EFAULT;
   }
 
