@@ -1,0 +1,1 @@
+cmd_/home/student/sysops2/sync/org/simple_sync/simple_module.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/student/sysops2/sync/org/simple_sync/simple_module.ko /home/student/sysops2/sync/org/simple_sync/simple_module.o /home/student/sysops2/sync/org/simple_sync/simple_module.mod.o ;  true

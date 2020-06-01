@@ -19,8 +19,7 @@ const char msg_str[] = "-0123456789-ABCDEFGHIJ-";
 const int msg_len = sizeof(msg_str);
 int msg_pos;
 
-static spinlock_t spinlock;
-static unsigned long spinlock_flags;
+spinlock_t spinlock;
 
 static int __init simple_init(void)
 {
@@ -53,10 +52,10 @@ ssize_t simple_read(struct file *filp, char __user *user_buf,
 	int err;
 
 	// 1. Prepare the text to send
-  	spin_lock_irqsave(&spinlock, spinlock_flags);
+  	spin_lock(&spinlock);
 	// Calculate the length
 	length_to_copy = msg_len - (msg_pos % msg_len);
-  	spin_unlock_irqrestore(&spinlock, spinlock_flags);
+  	spin_unlock(&spinlock);
 
 	if (length_to_copy > count)
 		length_to_copy = count;
@@ -67,12 +66,12 @@ ssize_t simple_read(struct file *filp, char __user *user_buf,
 		goto cleanup;
 	}
 
-  	spin_lock_irqsave(&spinlock, spinlock_flags);
+  	spin_lock(&spinlock);
 	for (i = 0; i < length_to_copy; i++) {
 		local_buf[i] = msg_str[(msg_pos++) % msg_len];
 		msleep(100);
 	}
-  	spin_unlock_irqrestore(&spinlock, spinlock_flags);
+  	spin_unlock(&spinlock);
 
 	// 2. Send the text
 	err = copy_to_user(user_buf, local_buf, length_to_copy);

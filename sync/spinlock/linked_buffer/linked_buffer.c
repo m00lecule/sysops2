@@ -26,7 +26,7 @@ struct proc_dir_entry *proc_entry;
 const struct file_operations linked_fops;
 
 /* Operations for /proc/linked */
-const struct proc_ops proc_ops;
+const struct file_operations proc_fops;
 
 struct data {
 	size_t length;
@@ -37,13 +37,13 @@ struct data {
 LIST_HEAD(buffer);
 size_t total_length;
 
-DEFINE_SPINLOCK(spinlock);
+spinlock_t spinlock;
 
 static int __init linked_init(void)
 {
 	int result = 0;
 
-	proc_entry = proc_create("linked", 0444, NULL, &proc_ops);
+	proc_entry = proc_create("linked", 0444, NULL, &proc_fops);
 	if (!proc_entry) {
 		printk(KERN_WARNING "Cannot create /proc/linked\n");
 		goto err;
@@ -210,13 +210,12 @@ const struct file_operations linked_fops = {
 	.write = linked_write,
 };
 
-const struct proc_ops proc_ops = {
-	.proc_open		= linked_proc_open,
-	.proc_read		= seq_read,
-	.proc_lseek		= seq_lseek,
-	.proc_release	= single_release,
+const struct file_operations proc_fops = {
+	.open		= linked_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 module_init(linked_init);
 module_exit(linked_exit);
-

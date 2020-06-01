@@ -8,3 +8,9 @@ all:
 
 clean:
 	make -C $(KDIR) M=$(PWD) clean
+
+insert:
+	insmod linked_buffer.ko
+
+remove: 
+	rmmod linked_buffer

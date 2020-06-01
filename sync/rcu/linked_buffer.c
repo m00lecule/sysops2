@@ -9,9 +9,6 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
-#include <linux/rculist.h>
-#include <linux/mutex.h>
-
 
 MODULE_LICENSE("GPL");
 
@@ -28,25 +25,22 @@ struct proc_dir_entry *proc_entry;
 const struct file_operations linked_fops;
 
 /* Operations for /proc/linked */
-const struct proc_ops proc_ops;
+const struct file_operations proc_fops;
 
 struct data {
 	size_t length;
 	char contents[INTERNAL_SIZE];
 	struct list_head list;
-  struct rcu_head rcu;
 };
 
 LIST_HEAD(buffer);
 size_t total_length;
 
-DEFINE_MUTEX(lock);
-
 static int __init linked_init(void)
 {
 	int result = 0;
 
-	proc_entry = proc_create("linked", 0444, NULL, &proc_ops);
+	proc_entry = proc_create("linked", 0444, NULL, &proc_fops);
 	if (!proc_entry) {
 		printk(KERN_WARNING "Cannot create /proc/linked\n");
 		goto err;
@@ -57,7 +51,7 @@ static int __init linked_init(void)
 		printk(KERN_WARNING "Cannot register the /dev/linked\n");
 		goto err;
 	}
-
+	
 	printk(KERN_INFO "The linked module has been inserted.\n");
 	return result;
 
@@ -114,9 +108,9 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 	if (list_empty(&buffer))
 		printk(KERN_DEBUG "linked: empty list\n");
 
-  rcu_read_lock();
+	rcu_read_lock();
 
-	list_for_each_entry_rcu(data, &buffer, list) {
+	list_for_each_entry(data, &buffer, list) {
 		size_t to_copy = min(data->length, count - copied);
 
 		printk(KERN_DEBUG "linked: elem=[%zd]<%*pE>\n",
@@ -132,8 +126,7 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 		if (copy_to_user(user_buf + copied, data->contents, to_copy)) {
 			printk(KERN_WARNING "linked: could not copy data to user\n");
-      rcu_read_unlock();
-      return -EFAULT;
+			return -EFAULT;
 		}
 		copied += to_copy;
 		pos += to_copy;
@@ -142,26 +135,37 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 		if (copied >= count)
 			break;
 	}
-
+	
+	rcu_read_unlock();
+	
+	
 	printk(KERN_WARNING "linked: copied=%zd real_length=%zd\n",
 		copied, real_length);
-
 	*f_pos += real_length;
 	read_count++;
-  rcu_read_unlock();
-
 	return copied;
 }
 
 ssize_t linked_write(struct file *filp, const char __user *user_buf,
 	size_t count, loff_t *f_pos)
 {
-	struct data *data = NULL, *data_head = NULL;
+	struct list_head *list_tmp;
+	struct data *data;
 	ssize_t result = 0;
 	size_t i = 0;
 
 	printk(KERN_WARNING "linked: write, count=%zu f_pos=%lld\n",
 		count, *f_pos);
+
+
+	list_tmp = kzalloc(sizeof(*list_tmp), GFP_KERNEL); 	// kkolasa
+	if (!list_tmp) {
+		result = -ENOMEM;
+		goto err_data;
+	}
+	list_tmp->next = list_tmp;
+	list_tmp->prev = list_tmp;
+	
 
 	for (i = 0; i < count; i += INTERNAL_SIZE) {
 		size_t to_copy = min((size_t) INTERNAL_SIZE, count - i);
@@ -172,7 +176,6 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 			goto err_data;
 		}
 		data->length = to_copy;
-    INIT_LIST_HEAD_RCU(&data->list);
 
 		if (copy_from_user(data->contents, user_buf + i, to_copy)) {
 			result = -EFAULT;
@@ -183,22 +186,17 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 			result = count;
 			goto err_contents;
 		}
-
-    if(data_head)
-      list_add_tail_rcu(&data->list, &data_head->list);
-    else
-      data_head = data;
-
+		list_add_tail(&(data->list), list_tmp);
 		total_length += to_copy;
 		*f_pos += to_copy;
 		mdelay(10);
 	}
+	
 
-  if(data_head) {
-    mutex_lock(&lock);
-    list_splice_tail_init_rcu(&data_head->list, &buffer, synchronize_rcu);
-    mutex_unlock(&lock);
-  }
+	list_splice(list_tmp, &buffer);
+	
+	synchronize_rcu();
+
 
 	write_count++;
 	return count;
@@ -226,13 +224,12 @@ const struct file_operations linked_fops = {
 	.write = linked_write,
 };
 
-const struct proc_ops proc_ops = {
-	.proc_open		= linked_proc_open,
-	.proc_read		= seq_read,
-	.proc_lseek		= seq_lseek,
-	.proc_release	= single_release,
+const struct file_operations proc_fops = {
+	.open		= linked_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 module_init(linked_init);
 module_exit(linked_exit);
-
