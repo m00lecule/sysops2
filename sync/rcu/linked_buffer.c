@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
+#include <linux/spinlock.h>
 
 MODULE_LICENSE("GPL");
 
@@ -36,6 +37,8 @@ struct data {
 LIST_HEAD(buffer);
 size_t total_length;
 
+spinlock_t spinlock;
+
 static int __init linked_init(void)
 {
 	int result = 0;
@@ -52,6 +55,8 @@ static int __init linked_init(void)
 		goto err;
 	}
 	
+	spin_lock_init(&spinlock);
+
 	printk(KERN_INFO "The linked module has been inserted.\n");
 	return result;
 
@@ -110,19 +115,17 @@ ssize_t linked_read(struct file *filp, char __user *user_buf,
 
 	rcu_read_lock();
 
-	list_for_each_entry(data, &buffer, list) {
+	list_for_each_entry_rcu(data, &buffer, list) {
 		size_t to_copy = min(data->length, count - copied);
 
 		printk(KERN_DEBUG "linked: elem=[%zd]<%*pE>\n",
 			data->length, INTERNAL_SIZE, data->contents);
 
 		if (pos < *f_pos) {
-			// Skip until we do match the entry
 			pos += data->length;
 			continue;
 		}
 
-		// We are in the correct entry
 
 		if (copy_to_user(user_buf + copied, data->contents, to_copy)) {
 			printk(KERN_WARNING "linked: could not copy data to user\n");
@@ -154,11 +157,13 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 	ssize_t result = 0;
 	size_t i = 0;
 
+	spin_lock(&spinlock);
+
 	printk(KERN_WARNING "linked: write, count=%zu f_pos=%lld\n",
 		count, *f_pos);
 
 
-	list_tmp = kzalloc(sizeof(*list_tmp), GFP_KERNEL); 	// kkolasa
+	list_tmp = kzalloc(sizeof(*list_tmp), GFP_KERNEL);
 	if (!list_tmp) {
 		result = -ENOMEM;
 		goto err_data;
@@ -197,11 +202,13 @@ ssize_t linked_write(struct file *filp, const char __user *user_buf,
 	
 	synchronize_rcu();
 
+	spin_unlock(&spinlock);
 
 	write_count++;
 	return count;
 
 err_contents:
+	spin_unlock(&spinlock);
 	kfree(data);
 err_data:
 	return result;
